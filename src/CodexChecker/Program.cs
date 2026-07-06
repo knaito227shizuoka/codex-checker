@@ -27,9 +27,5 @@ internal static class Program
         {
             MessageBox.Show(ex.Message, "codex-checker", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
-        catch (CodexCommandNotFoundException ex)
-        {
-            MessageBox.Show(ex.Message, "codex-checker", MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
     }
 }

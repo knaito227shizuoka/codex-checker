@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json;
 
 namespace CodexChecker;
@@ -16,6 +17,7 @@ public sealed class CodexCommandNotFoundException : Exception
 public sealed class AppServerClient : IDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly SemaphoreSlim _writeGate = new(1, 1);
     private readonly ConcurrentDictionary<int, TaskCompletionSource<JsonElement>> _pending = new();
     private Process? _process;
     private CancellationTokenSource? _readerCts;
@@ -147,8 +149,16 @@ public sealed class AppServerClient : IDisposable
 
         try
         {
-            await _process.StandardInput.WriteLineAsync(payload).ConfigureAwait(false);
-            await _process.StandardInput.FlushAsync().ConfigureAwait(false);
+            await _writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await _process.StandardInput.WriteLineAsync(payload).ConfigureAwait(false);
+                await _process.StandardInput.FlushAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                _writeGate.Release();
+            }
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(timeout);
@@ -165,17 +175,30 @@ public sealed class AppServerClient : IDisposable
 
     private async Task ReadLoopAsync(CancellationToken cancellationToken)
     {
-        if (_process is null)
+        var process = _process;
+        if (process is null)
         {
             return;
         }
 
-        while (!cancellationToken.IsCancellationRequested && !_process.HasExited)
+        while (!cancellationToken.IsCancellationRequested)
         {
             string? line;
             try
             {
-                line = await _process.StandardOutput.ReadLineAsync().ConfigureAwait(false);
+                try
+                {
+                    if (process.HasExited)
+                    {
+                        return;
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                    return;
+                }
+
+                line = await process.StandardOutput.ReadLineAsync().ConfigureAwait(false);
             }
             catch (ObjectDisposedException)
             {
@@ -234,7 +257,7 @@ public sealed class AppServerClient : IDisposable
             return null;
         }
 
-        var usedPercent = ReadInt(element, "usedPercent");
+        var usedPercent = ReadPercent(element, "usedPercent");
         if (usedPercent is null)
         {
             return null;
@@ -246,6 +269,27 @@ public sealed class AppServerClient : IDisposable
             ReadInt(element, "resetsInSeconds"));
     }
 
+    private static int? ReadPercent(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+        {
+            return null;
+        }
+
+        if (property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var number))
+        {
+            return (int)Math.Round(number, MidpointRounding.AwayFromZero);
+        }
+
+        if (property.ValueKind == JsonValueKind.String &&
+            double.TryParse(property.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out number))
+        {
+            return (int)Math.Round(number, MidpointRounding.AwayFromZero);
+        }
+
+        return null;
+    }
+
     private static int? ReadInt(JsonElement element, string propertyName)
     {
         if (!element.TryGetProperty(propertyName, out var property))
@@ -253,24 +297,49 @@ public sealed class AppServerClient : IDisposable
             return null;
         }
 
-        if (property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out var value))
+        if (property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out var intValue))
         {
-            return value;
+            return intValue;
         }
 
-        return property.ValueKind == JsonValueKind.String && int.TryParse(property.GetString(), out value)
-            ? value
-            : null;
+        if (property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var number))
+        {
+            return (int)Math.Round(number, MidpointRounding.AwayFromZero);
+        }
+
+        if (property.ValueKind == JsonValueKind.String &&
+            double.TryParse(property.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out number))
+        {
+            return (int)Math.Round(number, MidpointRounding.AwayFromZero);
+        }
+
+        return null;
     }
 
     private static DateTimeOffset? ReadDateTimeOffset(JsonElement element, string propertyName)
     {
-        if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind != JsonValueKind.String)
+        if (!element.TryGetProperty(propertyName, out var property))
         {
             return null;
         }
 
-        return DateTimeOffset.TryParse(property.GetString(), out var value) ? value : null;
+        if (property.ValueKind == JsonValueKind.Number && property.TryGetInt64(out var unixSeconds))
+        {
+            return DateTimeOffset.FromUnixTimeSeconds(unixSeconds);
+        }
+
+        if (property.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+
+        var text = property.GetString();
+        if (long.TryParse(text, out unixSeconds))
+        {
+            return DateTimeOffset.FromUnixTimeSeconds(unixSeconds);
+        }
+
+        return DateTimeOffset.TryParse(text, out var value) ? value : null;
     }
 
     private void StopProcess()
@@ -318,6 +387,7 @@ public sealed class AppServerClient : IDisposable
 
         StopProcess();
         _gate.Dispose();
+        _writeGate.Dispose();
         _disposed = true;
     }
 }

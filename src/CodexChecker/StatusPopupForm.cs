@@ -8,6 +8,7 @@ namespace CodexChecker;
 public sealed class StatusPopupForm : Form
 {
     private readonly Label _codexHeader = new();
+    private readonly Button _closeButton = new();
     private readonly Label _statusLabel = new();
     private readonly LinkLabel _claudeLink = new();
 
@@ -20,32 +21,43 @@ public sealed class StatusPopupForm : Form
         ShowInTaskbar = false;
         TopMost = true;
         StartPosition = FormStartPosition.Manual;
-        Size = new Size(320, 136);
+        Size = new Size(460, 142);
         BackColor = Color.FromArgb(31, 34, 38);
         ForeColor = Color.White;
         Font = new Font("Consolas", 10F, FontStyle.Regular, GraphicsUnit.Point);
-        KeyPreview = true;
 
         _codexHeader.AutoSize = true;
         _codexHeader.Text = "<codex>";
         _codexHeader.Location = new Point(14, 12);
         _codexHeader.ForeColor = Color.FromArgb(230, 238, 247);
 
+        _closeButton.Text = "x";
+        _closeButton.Size = new Size(26, 24);
+        _closeButton.Location = new Point(422, 8);
+        _closeButton.FlatStyle = FlatStyle.Flat;
+        _closeButton.FlatAppearance.BorderSize = 0;
+        _closeButton.BackColor = Color.FromArgb(31, 34, 38);
+        _closeButton.ForeColor = Color.FromArgb(210, 218, 226);
+        _closeButton.TabStop = false;
+        _closeButton.Cursor = Cursors.Hand;
+        _closeButton.Click += (_, _) => Hide();
+
         _statusLabel.AutoSize = false;
         _statusLabel.Location = new Point(14, 35);
-        _statusLabel.Size = new Size(292, 46);
+        _statusLabel.Size = new Size(432, 46);
         _statusLabel.ForeColor = Color.FromArgb(246, 248, 250);
         _statusLabel.Text = "取得中...";
 
         _claudeLink.AutoSize = true;
         _claudeLink.Location = new Point(14, 92);
-        _claudeLink.Text = "<claude> usage を開く";
+        _claudeLink.Text = "Claude Usage を開く";
         _claudeLink.LinkColor = Color.FromArgb(126, 200, 255);
         _claudeLink.ActiveLinkColor = Color.FromArgb(255, 214, 102);
         _claudeLink.VisitedLinkColor = Color.FromArgb(126, 200, 255);
         _claudeLink.LinkClicked += (_, _) => OpenClaudeUsage();
 
         Controls.Add(_codexHeader);
+        Controls.Add(_closeButton);
         Controls.Add(_statusLabel);
         Controls.Add(_claudeLink);
 
@@ -53,6 +65,9 @@ public sealed class StatusPopupForm : Form
         menu.Items.Add("再取得", null, (_, _) => RefreshRequested?.Invoke(this, EventArgs.Empty));
         menu.Items.Add("常駐を終了", null, (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty));
         ContextMenuStrip = menu;
+        _codexHeader.ContextMenuStrip = menu;
+        _statusLabel.ContextMenuStrip = menu;
+        _claudeLink.ContextMenuStrip = menu;
 
         MouseClick += (_, args) =>
         {
@@ -66,7 +81,7 @@ public sealed class StatusPopupForm : Form
         {
             control.MouseClick += (_, args) =>
             {
-                if (args.Button == MouseButtons.Left && control != _claudeLink)
+                if (args.Button == MouseButtons.Left && control != _claudeLink && control != _closeButton)
                 {
                     Hide();
                 }
@@ -106,15 +121,6 @@ public sealed class StatusPopupForm : Form
     {
         var area = Screen.PrimaryScreen?.WorkingArea ?? Screen.FromControl(this).WorkingArea;
         Location = new Point(area.Right - Width - 12, area.Bottom - Height - 12);
-    }
-
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        base.OnKeyDown(e);
-        if (e.KeyCode == Keys.Escape)
-        {
-            Hide();
-        }
     }
 
     private static void OpenClaudeUsage()

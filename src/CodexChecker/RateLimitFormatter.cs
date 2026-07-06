@@ -16,7 +16,7 @@ public static class RateLimitFormatter
         var remaining = Math.Clamp(100 - window.UsedPercent, 0, 100);
         var filled = Math.Clamp((int)Math.Round(remaining / 10.0, MidpointRounding.AwayFromZero), 0, 10);
         var bar = "[" + new string('#', filled) + new string('-', 10 - filled) + "]";
-        var resetText = FormatReset(window);
+        var resetText = FormatReset(label, window);
 
         return $"{label} {bar} 残り{remaining}%{resetText}";
     }
@@ -35,7 +35,7 @@ public static class RateLimitFormatter
         });
     }
 
-    private static string FormatReset(RateLimitWindow window)
+    private static string FormatReset(string label, RateLimitWindow window)
     {
         var resetsAt = window.ResetsAt;
         if (resetsAt is null && window.ResetsInSeconds is int seconds)
@@ -43,6 +43,12 @@ public static class RateLimitFormatter
             resetsAt = DateTimeOffset.Now.AddSeconds(seconds);
         }
 
-        return resetsAt is null ? string.Empty : $" (リセット: {resetsAt.Value.LocalDateTime:HH:mm})";
+        if (resetsAt is null)
+        {
+            return string.Empty;
+        }
+
+        var format = label == "1w" ? "yyyy-MM-dd HH:mm" : "HH:mm";
+        return $"　R: {resetsAt.Value.LocalDateTime.ToString(format)}";
     }
 }
