@@ -40,7 +40,7 @@ var tests = new (string Name, Action Body)[]
     {
         var now = new DateTimeOffset(2026, 7, 6, 20, 0, 0, TimeSpan.FromHours(9));
         var resetsAt = now.AddDays(6).AddHours(23).AddMinutes(30);
-        AssertEqual("残り50%　あと6日23時間でリセット", RateLimitFormatter.FormatDetail("5h", new RateLimitWindow(50, resetsAt), now));
+        AssertEqual("残り50%　あと6日23時間30分でリセット", RateLimitFormatter.FormatDetail("5h", new RateLimitWindow(50, resetsAt), now));
     }),
     ("Format 5h reset minutes only rounds up", () =>
     {
@@ -59,17 +59,17 @@ var tests = new (string Name, Action Body)[]
         var now = new DateTimeOffset(2026, 7, 6, 20, 0, 0, TimeSpan.FromHours(9));
         AssertEqual("残り80%　あと1時間0分でリセット", RateLimitFormatter.FormatDetail("5h", new RateLimitWindow(20, ResetsInSeconds: 3600), now));
     }),
-    ("Format 1w reset with date and time", () =>
+    ("Format 1w reset via ResetsAt", () =>
     {
-        var localTime = new DateTime(2026, 7, 12, 9, 5, 0);
-        var resetsAt = new DateTimeOffset(localTime, TimeZoneInfo.Local.GetUtcOffset(localTime));
-        AssertEqual("残り50%　2026-07-12 09:05", RateLimitFormatter.FormatDetail("1w", new RateLimitWindow(50, resetsAt)));
+        var now = new DateTimeOffset(2026, 7, 6, 20, 0, 0, TimeSpan.FromHours(9));
+        var resetsAt = now.AddDays(2).AddHours(3);
+        AssertEqual("残り50%　あと2日3時間0分でリセット", RateLimitFormatter.FormatDetail("1w", new RateLimitWindow(50, resetsAt), now));
     }),
     ("Format 1w reset from resetsInSeconds", () =>
     {
         var localTime = new DateTime(2026, 7, 6, 20, 0, 0);
         var now = new DateTimeOffset(localTime, TimeZoneInfo.Local.GetUtcOffset(localTime));
-        AssertEqual("残り50%　2026-07-07 20:00", RateLimitFormatter.FormatDetail("1w", new RateLimitWindow(50, ResetsInSeconds: 86400), now));
+        AssertEqual("残り50%　あと1日0時間0分でリセット", RateLimitFormatter.FormatDetail("1w", new RateLimitWindow(50, ResetsInSeconds: 86400), now));
     }),
     ("Parse matching rate limit response", () =>
     {

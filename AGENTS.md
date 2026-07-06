@@ -1,68 +1,68 @@
 # AGENTS.md
 
-## Project Notes
+## プロジェクトメモ
 
-- Main app: `src/CodexChecker`
-- Test runner: `tests/CodexChecker.Tests`
-- Published exe: `src/CodexChecker/bin/Release/net6.0-windows/win-x64/publish/CodexChecker.exe`
-- The app is a resident WinForms app. A running `CodexChecker.exe` locks the publish output, so stop it before republishing.
+- メインアプリ: `src/CodexChecker`
+- テストランナー: `tests/CodexChecker.Tests`
+- 発行済み exe: `src/CodexChecker/bin/Release/net6.0-windows/win-x64/publish/CodexChecker.exe`
+- このアプリは常駐する WinForms アプリです。`CodexChecker.exe` が起動中だと発行結果がロックされるため、再発行前に停止してください。
 
-## After Making Code Changes
+## コード変更後の対応
 
-When an agent fixes or changes the app, rerun the app with this single command:
+エージェントがアプリを修正・変更した場合は、以下の1コマンドでアプリを再実行してください。
 
 ```powershell
 pwsh -File .\redeploy.ps1
 ```
 
-`redeploy.ps1` runs build → tests → stop resident process → publish → restart → verify residency, and stops with exit code 1 at the first failing step.
+`redeploy.ps1` はビルド → テスト → 常駐プロセス停止 → 発行 → 再起動 → 常駐確認を順に実行し、最初に失敗したステップで終了コード1で停止します。
 
-If you need to run an individual step (e.g. only build, or only restart), use the commands below:
+個別のステップ（ビルドのみ、再起動のみなど）を実行したい場合は、以下のコマンドを使用してください。
 
-1. Build the app.
+1. アプリをビルドする。
 
    ```powershell
    dotnet build src/CodexChecker
    ```
 
-2. Run the tests.
+2. テストを実行する。
 
    ```powershell
    dotnet run --project tests/CodexChecker.Tests
    ```
 
-3. Stop any currently running resident process before publishing.
+3. 発行前に、現在起動中の常駐プロセスを停止する。
 
    ```powershell
    Get-Process CodexChecker -ErrorAction SilentlyContinue | Stop-Process
    ```
 
-4. Publish the updated resident exe.
+4. 更新した常駐用 exe を発行する。
 
    ```powershell
    dotnet publish src/CodexChecker -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
    ```
 
-5. Start the updated resident app.
+5. 更新したアプリを起動する。
 
    ```powershell
    Start-Process -FilePath "$PWD\src\CodexChecker\bin\Release\net6.0-windows\win-x64\publish\CodexChecker.exe" -WindowStyle Hidden
    ```
 
-6. Verify that it is resident.
+6. 常駐していることを確認する。
 
    ```powershell
    Get-Process CodexChecker
    ```
 
-## Manual Smoke Check
+## 手動動作確認
 
-- Confirm the `codex-checker` icon appears in the notification area.
-- Press `Ctrl + Alt + X` while the popup is hidden: it should show.
-- Press `Ctrl + Alt + X` while the popup is visible: it should close.
-- Click the popup `x` button: it should close while the app remains resident.
-- Right-click the tray icon and use `常駐を終了`: the resident process should exit.
+- 通知領域に `codex-checker` アイコンが表示されていることを確認する。
+- ポップアップが非表示の状態で `Ctrl + Alt + X` を押す: ポップアップが表示されること。
+- ポップアップが表示中の状態で `Ctrl + Alt + X` を押す: ポップアップが閉じること。
+- ポップアップの `x` ボタンをクリックする: アプリは常駐したままポップアップが閉じること。
+- トレイアイコンを右クリックし `常駐を終了` を選択する: 常駐プロセスが終了すること。
 
-## Sandbox Notes
+## サンドボックスに関する注意
 
-In this environment, `dotnet run` for tests and `dotnet publish` may need elevated execution because the .NET SDK reads `C:\Users\azcat\AppData\Local\Microsoft SDKs`. If sandboxed execution fails with an access denied error for that path, rerun the same command with approval.
+この環境では、テスト用の `dotnet run` や `dotnet publish` が .NET SDK による `C:\Users\azcat\AppData\Local\Microsoft SDKs` への読み取りのために昇格実行を必要とする場合があります。サンドボックス実行がこのパスに対するアクセス拒否エラーで失敗した場合は、承認の上で同じコマンドを再実行してください。

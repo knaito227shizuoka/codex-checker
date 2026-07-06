@@ -9,7 +9,10 @@
       "PowerShell(Stop-Process)",
       "PowerShell(dotnet publish src/CodexChecker -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true)",
       "PowerShell(Start-Process -FilePath \"$PWD\\\\src\\\\CodexChecker\\\\bin\\\\Release\\\\net6.0-windows\\\\win-x64\\\\publish\\\\CodexChecker.exe\" -WindowStyle Hidden; Start-Sleep -Seconds 1; Get-Process CodexChecker)",
-      "PowerShell(pwsh -File .\\\\redeploy.ps1)"
+      "PowerShell(pwsh -File .\\\\redeploy.ps1)",
+      "Bash(pwsh -File ./redeploy.ps1)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

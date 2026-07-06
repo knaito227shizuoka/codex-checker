@@ -32,11 +32,6 @@ public static class RateLimitFormatter
             return string.Empty;
         }
 
-        if (label == "1w")
-        {
-            return $"　{resetsAt.Value.LocalDateTime:yyyy-MM-dd HH:mm}";
-        }
-
         return $"　{FormatRemaining(resetsAt.Value - now)}";
     }
 
@@ -49,7 +44,7 @@ public static class RateLimitFormatter
 
         if (remaining.TotalDays >= 1)
         {
-            return $"あと{(int)remaining.TotalDays}日{remaining.Hours}時間でリセット";
+            return $"あと{(int)remaining.TotalDays}日{remaining.Hours}時間{remaining.Minutes}分でリセット";
         }
 
         if (remaining.TotalHours >= 1)
