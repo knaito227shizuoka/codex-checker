@@ -26,26 +26,61 @@ Codex の利用量(レートリミット)をいつでも確認できる Windows 
 
 ## 3. 実装方式
 
-- **言語/ランタイム**: PowerShell (pwsh 7 推奨 / Windows PowerShell 5.1 でも動作) + WinForms
-  - リポジトリの既存資産 (status.ps1 の RPC 処理) を流用でき、ビルド不要のため
-- **ホットキー**: `user32.dll` の `RegisterHotKey` を P/Invoke (`Add-Type`) で登録
+| 項目 | 内容 |
+|------|------|
+| 言語 | C# |
+| UI フレームワーク | WinForms (Windows Forms) |
+| ランタイム | .NET 6.0 (`net6.0-windows`) |
+| 外部パッケージ | なし (依存ゼロ。JSON は `System.Text.Json`、P/Invoke は `DllImport` で標準ライブラリのみ) |
+| テストランナー | 自前コンソールランナー (xunit/MSTest は NuGet 復元できないため) |
+| ビルド | `dotnet build` / `dotnet publish` |
+
+- **ホットキー**: `user32.dll` の `RegisterHotKey` を P/Invoke で登録
   - modifiers = `MOD_WIN | MOD_ALT | MOD_NOREPEAT`, key = `X`
-  - メッセージループは非表示の WinForms フォームで `WM_HOTKEY (0x0312)` を受信
+  - 非表示のメッセージ専用フォーム (または `NativeWindow`) で `WM_HOTKEY (0x0312)` を受信
 - **定期表示**: `System.Windows.Forms.Timer` (interval = 10 分)。UI スレッド上で
   動くためスレッド間マーシャリング不要
-- **起動方法**: コンソール窓を出さないため、以下のいずれかで起動
-  - `wscript.exe` + ランチャー用 `.vbs` (`run-hidden.vbs`) から `pwsh -WindowStyle Hidden` を起動
-  - 自動起動する場合は `shell:startup` にこのランチャーへのショートカットを置く (手動・任意)
+- **コンソール非表示**: `OutputType = WinExe` のためランチャー不要。exe 直起動で窓は出ない
+  - 自動起動する場合は `shell:startup` に exe へのショートカットを置く (手動・任意)
 
 ### ファイル構成
 
 ```
 codex-checker/
-├── status.ps1        # 既存: ワンショット確認用 (変更しない)
-├── resident.ps1      # 新規: 常駐アプリ本体
-├── run-hidden.vbs    # 新規: コンソール非表示で resident.ps1 を起動するランチャー
-└── SPEC.md           # 本仕様書
+├── status.ps1                    # 既存: ワンショット確認用 (変更しない)
+├── SPEC.md                       # 本仕様書
+├── src/
+│   └── CodexChecker/
+│       ├── CodexChecker.csproj   # WinExe, net6.0-windows, UseWindowsForms
+│       ├── Program.cs            # エントリポイント (Mutex、ApplicationContext 起動)
+│       ├── ResidentContext.cs    # 常駐本体 (ホットキー登録、タイマー、ライフサイクル)
+│       ├── AppServerClient.cs    # codex app-server の起動・JSON-RPC・死活監視 (UI 非依存)
+│       ├── RateLimitFormatter.cs # usedPercent → バー文字列などの整形ロジック (純粋関数)
+│       └── StatusPopupForm.cs    # 右下ポップアップ UI
+└── tests/
+    └── CodexChecker.Tests/
+        ├── CodexChecker.Tests.csproj  # OutputType=Exe の自前ランナー
+        └── Program.cs                 # テスト本体 + Main (結果集計、失敗時 exit code 1)
 ```
+
+### ビルド・実行
+
+```powershell
+dotnet build src/CodexChecker                 # デバッグビルド
+dotnet run --project src/CodexChecker         # そのまま起動
+dotnet publish src/CodexChecker -c Release    # 配布用 (フレームワーク依存)
+```
+
+### テスト
+
+- `tests/CodexChecker.Tests` は `CodexChecker` 本体をプロジェクト参照し、
+  UI 非依存のロジックを対象にテストする:
+  - `RateLimitFormatter`: usedPercent 0/50/100/範囲外 → バー文字列・残り% の検証
+  - JSON-RPC レスポンスのパース (id 対応付け、`rateLimits` 抽出、不正 JSON の無視)
+- 実行: `dotnet run --project tests/CodexChecker.Tests`
+  - 各テストの pass/fail を列挙し、1 件でも失敗すれば exit code 1
+- 本体側は UI とロジックを分離し (`AppServerClient` / `RateLimitFormatter` は
+  WinForms 非依存)、テスト可能な形を保つ
 
 ## 4. app-server の管理
 
@@ -141,7 +176,7 @@ status.ps1 の出力フォーマットを踏襲する:
 - 通知領域 (システムトレイ) アイコンも置かない。終了手段はポップアップの
   右クリックメニューのみ
 - `Win + Alt + X` が他アプリ (Game Bar 拡張等) に取られている場合は
-  登録に失敗するため、スクリプト冒頭の定数でキー・表示間隔 (10 分)・
+  登録に失敗するため、ソース冒頭の定数 (`ResidentContext` 内) でキー・表示間隔 (10 分)・
   自動消滅時間 (8 秒) を変更可能にする
 - 対象はプライマリモニタのみ (マルチモニタ対応は将来課題)
 
