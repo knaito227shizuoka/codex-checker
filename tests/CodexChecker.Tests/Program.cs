@@ -2,37 +2,45 @@ using CodexChecker;
 
 var tests = new (string Name, Action Body)[]
 {
-    ("Format usedPercent 0 as full remaining", () =>
+    ("Remaining percent for usedPercent 0", () =>
     {
-        AssertEqual("5h [##########] 残り100%", RateLimitFormatter.FormatWindow("5h", new RateLimitWindow(0)));
+        AssertEqual(100, RateLimitFormatter.RemainingPercent(new RateLimitWindow(0)));
     }),
-    ("Format usedPercent 50 as half remaining", () =>
+    ("Remaining percent for usedPercent 50", () =>
     {
-        AssertEqual("1w [#####-----] 残り50%", RateLimitFormatter.FormatWindow("1w", new RateLimitWindow(50)));
+        AssertEqual(50, RateLimitFormatter.RemainingPercent(new RateLimitWindow(50)));
     }),
-    ("Format usedPercent 100 as empty remaining", () =>
+    ("Remaining percent for usedPercent 100", () =>
     {
-        AssertEqual("5h [----------] 残り0%", RateLimitFormatter.FormatWindow("5h", new RateLimitWindow(100)));
+        AssertEqual(0, RateLimitFormatter.RemainingPercent(new RateLimitWindow(100)));
     }),
     ("Clamp usedPercent below range", () =>
     {
-        AssertEqual("5h [##########] 残り100%", RateLimitFormatter.FormatWindow("5h", new RateLimitWindow(-20)));
+        AssertEqual(100, RateLimitFormatter.RemainingPercent(new RateLimitWindow(-20)));
     }),
     ("Clamp usedPercent above range", () =>
     {
-        AssertEqual("1w [----------] 残り0%", RateLimitFormatter.FormatWindow("1w", new RateLimitWindow(150)));
+        AssertEqual(0, RateLimitFormatter.RemainingPercent(new RateLimitWindow(150)));
+    }),
+    ("Format detail without reset", () =>
+    {
+        AssertEqual("残り80%", RateLimitFormatter.FormatDetail("5h", new RateLimitWindow(20)));
+    }),
+    ("Format detail for missing window", () =>
+    {
+        AssertEqual("データなし", RateLimitFormatter.FormatDetail("5h", null));
     }),
     ("Format 5h reset with time only", () =>
     {
         var localTime = new DateTime(2026, 7, 6, 18, 54, 0);
         var resetsAt = new DateTimeOffset(localTime, TimeZoneInfo.Local.GetUtcOffset(localTime));
-        AssertEqual("5h [########--] 残り80%　R: 18:54", RateLimitFormatter.FormatWindow("5h", new RateLimitWindow(20, resetsAt)));
+        AssertEqual("残り80%　18:54", RateLimitFormatter.FormatDetail("5h", new RateLimitWindow(20, resetsAt)));
     }),
     ("Format 1w reset with date and time", () =>
     {
         var localTime = new DateTime(2026, 7, 12, 9, 5, 0);
         var resetsAt = new DateTimeOffset(localTime, TimeZoneInfo.Local.GetUtcOffset(localTime));
-        AssertEqual("1w [#####-----] 残り50%　R: 2026-07-12 09:05", RateLimitFormatter.FormatWindow("1w", new RateLimitWindow(50, resetsAt)));
+        AssertEqual("残り50%　2026-07-12 09:05", RateLimitFormatter.FormatDetail("1w", new RateLimitWindow(50, resetsAt)));
     }),
     ("Parse matching rate limit response", () =>
     {

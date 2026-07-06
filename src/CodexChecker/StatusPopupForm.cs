@@ -10,6 +10,12 @@ public sealed class StatusPopupForm : Form
     private readonly Label _codexHeader = new();
     private readonly Button _closeButton = new();
     private readonly Label _statusLabel = new();
+    private readonly Label _primaryLabel = new();
+    private readonly RemainingBar _primaryBar = new();
+    private readonly Label _primaryDetail = new();
+    private readonly Label _secondaryLabel = new();
+    private readonly RemainingBar _secondaryBar = new();
+    private readonly Label _secondaryDetail = new();
     private readonly LinkLabel _claudeLink = new();
 
     public event EventHandler? RefreshRequested;
@@ -27,7 +33,7 @@ public sealed class StatusPopupForm : Form
         Font = new Font("Consolas", 10F, FontStyle.Regular, GraphicsUnit.Point);
 
         _codexHeader.AutoSize = true;
-        _codexHeader.Text = "<codex>";
+        _codexHeader.Text = "Codex";
         _codexHeader.Location = new Point(14, 12);
         _codexHeader.ForeColor = Color.FromArgb(230, 238, 247);
 
@@ -43,10 +49,13 @@ public sealed class StatusPopupForm : Form
         _closeButton.Click += (_, _) => Hide();
 
         _statusLabel.AutoSize = false;
-        _statusLabel.Location = new Point(14, 35);
+        _statusLabel.Location = new Point(14, 38);
         _statusLabel.Size = new Size(432, 46);
         _statusLabel.ForeColor = Color.FromArgb(246, 248, 250);
         _statusLabel.Text = "取得中...";
+
+        ConfigureRow(_primaryLabel, _primaryBar, _primaryDetail, "5h", top: 40);
+        ConfigureRow(_secondaryLabel, _secondaryBar, _secondaryDetail, "1w", top: 64);
 
         _claudeLink.AutoSize = true;
         _claudeLink.Location = new Point(14, 92);
@@ -59,15 +68,18 @@ public sealed class StatusPopupForm : Form
         Controls.Add(_codexHeader);
         Controls.Add(_closeButton);
         Controls.Add(_statusLabel);
+        Controls.Add(_primaryLabel);
+        Controls.Add(_primaryBar);
+        Controls.Add(_primaryDetail);
+        Controls.Add(_secondaryLabel);
+        Controls.Add(_secondaryBar);
+        Controls.Add(_secondaryDetail);
         Controls.Add(_claudeLink);
 
         var menu = new ContextMenuStrip();
         menu.Items.Add("再取得", null, (_, _) => RefreshRequested?.Invoke(this, EventArgs.Empty));
         menu.Items.Add("常駐を終了", null, (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty));
         ContextMenuStrip = menu;
-        _codexHeader.ContextMenuStrip = menu;
-        _statusLabel.ContextMenuStrip = menu;
-        _claudeLink.ContextMenuStrip = menu;
 
         MouseClick += (_, args) =>
         {
@@ -79,6 +91,11 @@ public sealed class StatusPopupForm : Form
 
         foreach (Control control in Controls)
         {
+            if (control != _closeButton)
+            {
+                control.ContextMenuStrip = menu;
+            }
+
             control.MouseClick += (_, args) =>
             {
                 if (args.Button == MouseButtons.Left && control != _claudeLink && control != _closeButton)
@@ -104,23 +121,63 @@ public sealed class StatusPopupForm : Form
 
     public void ShowLoading()
     {
-        _statusLabel.Text = "取得中...";
+        ShowMessage("取得中...");
     }
 
     public void ShowSnapshot(RateLimitSnapshot snapshot)
     {
-        _statusLabel.Text = RateLimitFormatter.FormatSnapshot(snapshot);
+        _statusLabel.Visible = false;
+        ApplyWindow(_primaryBar, _primaryDetail, "5h", snapshot.Primary);
+        ApplyWindow(_secondaryBar, _secondaryDetail, "1w", snapshot.Secondary);
+        SetRowsVisible(true);
     }
 
     public void ShowError()
     {
-        _statusLabel.Text = "利用量を取得できませんでした。";
+        ShowMessage("利用量を取得できませんでした。");
     }
 
     public void PositionAtBottomRight()
     {
         var area = Screen.PrimaryScreen?.WorkingArea ?? Screen.FromControl(this).WorkingArea;
         Location = new Point(area.Right - Width - 12, area.Bottom - Height - 12);
+    }
+
+    private void ConfigureRow(Label label, RemainingBar bar, Label detail, string text, int top)
+    {
+        label.AutoSize = true;
+        label.Text = text;
+        label.Location = new Point(14, top);
+
+        bar.Location = new Point(48, top + 2);
+        bar.Size = new Size(150, 12);
+
+        detail.AutoSize = true;
+        detail.Location = new Point(210, top);
+        detail.ForeColor = Color.FromArgb(246, 248, 250);
+    }
+
+    private void ShowMessage(string text)
+    {
+        SetRowsVisible(false);
+        _statusLabel.Text = text;
+        _statusLabel.Visible = true;
+    }
+
+    private void SetRowsVisible(bool visible)
+    {
+        _primaryLabel.Visible = visible;
+        _primaryBar.Visible = visible;
+        _primaryDetail.Visible = visible;
+        _secondaryLabel.Visible = visible;
+        _secondaryBar.Visible = visible;
+        _secondaryDetail.Visible = visible;
+    }
+
+    private static void ApplyWindow(RemainingBar bar, Label detail, string label, RateLimitWindow? window)
+    {
+        bar.Value = window is null ? 0 : RateLimitFormatter.RemainingPercent(window);
+        detail.Text = RateLimitFormatter.FormatDetail(label, window);
     }
 
     private static void OpenClaudeUsage()
@@ -135,6 +192,48 @@ public sealed class StatusPopupForm : Form
         }
         catch (Win32Exception)
         {
+        }
+    }
+
+    private sealed class RemainingBar : Control
+    {
+        private static readonly Color TrackColor = Color.FromArgb(55, 60, 66);
+        private static readonly Color FillColor = Color.FromArgb(84, 169, 255);
+        private int _value;
+
+        public RemainingBar()
+        {
+            SetStyle(
+                ControlStyles.AllPaintingInWmPaint |
+                ControlStyles.OptimizedDoubleBuffer |
+                ControlStyles.UserPaint |
+                ControlStyles.ResizeRedraw,
+                true);
+        }
+
+        public int Value
+        {
+            get => _value;
+            set
+            {
+                _value = Math.Clamp(value, 0, 100);
+                Invalidate();
+            }
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+
+            using var track = new SolidBrush(TrackColor);
+            e.Graphics.FillRectangle(track, ClientRectangle);
+
+            var fillWidth = (int)Math.Round(ClientRectangle.Width * (_value / 100.0));
+            if (fillWidth > 0)
+            {
+                using var fill = new SolidBrush(FillColor);
+                e.Graphics.FillRectangle(fill, new Rectangle(0, 0, fillWidth, ClientRectangle.Height));
+            }
         }
     }
 }

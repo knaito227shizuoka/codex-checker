@@ -127,18 +127,21 @@ dotnet publish src/CodexChecker -c Release    # 配布用 (フレームワーク
 
 ### 表示内容
 
-status.ps1 の出力フォーマットを踏襲する:
+表示項目は status.ps1 に準じつつ、バーは GUI 描画のプログレスバーにする:
 
 ```
-<codex>
-5h [########--] 残り80%
-1w [#####-----] 残り52%
+Codex                                  x
+5h ▓▓▓▓▓▓▓▓░░ 残り80%　18:54
+1w ▓▓▓▓▓░░░░░ 残り52%　2026-07-12 09:05
 Claude Usage を開く        ← クリックでブラウザ起動
 ```
 
-- バー: 残量 10 段階 (`#` = 残り, `-` = 消費済み)。`100 - usedPercent` で算出
+- バー: 塗りつぶし矩形で残量 (`100 - usedPercent`、0〜100 にクランプ) を描画する
+  自前コントロール (ダブルバッファ)。テキストの `#` / `-` バーは使わない
+  (status.ps1 のみ従来表記のまま)
+- ウィンドウのデータが無い場合、バーは 0% でテキストは「データなし」
 - rateLimits に `resetsAt` / `resetsInSeconds` 相当のフィールドがあれば
-  5h は「残りN%　R: HH:mm」、1w は「残りN%　R: yyyy-MM-dd HH:mm」の形で併記する
+  5h は「残りN%　HH:mm」、1w は「残りN%　yyyy-MM-dd HH:mm」の形で併記する
   (無ければ省略)
 - `Claude Usage を開く` はリンクラベルとし、クリックで
   `https://claude.ai/new#settings/usage` を既定ブラウザで開く

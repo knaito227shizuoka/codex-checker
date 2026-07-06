@@ -6,33 +6,17 @@ public sealed record RateLimitWindow(int UsedPercent, DateTimeOffset? ResetsAt =
 
 public static class RateLimitFormatter
 {
-    public static string FormatWindow(string label, RateLimitWindow? window)
+    public static int RemainingPercent(RateLimitWindow window)
+        => Math.Clamp(100 - window.UsedPercent, 0, 100);
+
+    public static string FormatDetail(string label, RateLimitWindow? window)
     {
         if (window is null)
         {
-            return $"{label} データなし";
+            return "データなし";
         }
 
-        var remaining = Math.Clamp(100 - window.UsedPercent, 0, 100);
-        var filled = Math.Clamp((int)Math.Round(remaining / 10.0, MidpointRounding.AwayFromZero), 0, 10);
-        var bar = "[" + new string('#', filled) + new string('-', 10 - filled) + "]";
-        var resetText = FormatReset(label, window);
-
-        return $"{label} {bar} 残り{remaining}%{resetText}";
-    }
-
-    public static string FormatSnapshot(RateLimitSnapshot? snapshot)
-    {
-        if (snapshot is null)
-        {
-            return "利用量を取得できませんでした。";
-        }
-
-        return string.Join(Environment.NewLine, new[]
-        {
-            FormatWindow("5h", snapshot.Primary),
-            FormatWindow("1w", snapshot.Secondary)
-        });
+        return $"残り{RemainingPercent(window)}%{FormatReset(label, window)}";
     }
 
     private static string FormatReset(string label, RateLimitWindow window)
@@ -49,6 +33,6 @@ public static class RateLimitFormatter
         }
 
         var format = label == "1w" ? "yyyy-MM-dd HH:mm" : "HH:mm";
-        return $"　R: {resetsAt.Value.LocalDateTime.ToString(format)}";
+        return $"　{resetsAt.Value.LocalDateTime.ToString(format)}";
     }
 }
