@@ -9,7 +9,15 @@
 
 ## After Making Code Changes
 
-When an agent fixes or changes the app, rerun the app with this flow:
+When an agent fixes or changes the app, rerun the app with this single command:
+
+```powershell
+pwsh -File .\redeploy.ps1
+```
+
+`redeploy.ps1` runs build → tests → stop resident process → publish → restart → verify residency, and stops with exit code 1 at the first failing step.
+
+If you need to run an individual step (e.g. only build, or only restart), use the commands below:
 
 1. Build the app.
 

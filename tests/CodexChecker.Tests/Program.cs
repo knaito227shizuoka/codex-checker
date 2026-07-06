@@ -30,17 +30,46 @@ var tests = new (string Name, Action Body)[]
     {
         AssertEqual("データなし", RateLimitFormatter.FormatDetail("5h", null));
     }),
-    ("Format 5h reset with time only", () =>
+    ("Format 5h reset with hours and minutes", () =>
     {
-        var localTime = new DateTime(2026, 7, 6, 18, 54, 0);
-        var resetsAt = new DateTimeOffset(localTime, TimeZoneInfo.Local.GetUtcOffset(localTime));
-        AssertEqual("残り80%　18:54", RateLimitFormatter.FormatDetail("5h", new RateLimitWindow(20, resetsAt)));
+        var now = new DateTimeOffset(2026, 7, 6, 20, 0, 0, TimeSpan.FromHours(9));
+        var resetsAt = now.AddHours(4).AddMinutes(37);
+        AssertEqual("残り80%　あと4時間37分でリセット", RateLimitFormatter.FormatDetail("5h", new RateLimitWindow(20, resetsAt), now));
+    }),
+    ("Format 5h reset spanning days", () =>
+    {
+        var now = new DateTimeOffset(2026, 7, 6, 20, 0, 0, TimeSpan.FromHours(9));
+        var resetsAt = now.AddDays(6).AddHours(23).AddMinutes(30);
+        AssertEqual("残り50%　あと6日23時間でリセット", RateLimitFormatter.FormatDetail("5h", new RateLimitWindow(50, resetsAt), now));
+    }),
+    ("Format 5h reset minutes only rounds up", () =>
+    {
+        var now = new DateTimeOffset(2026, 7, 6, 20, 0, 0, TimeSpan.FromHours(9));
+        var resetsAt = now.AddMinutes(25).AddSeconds(30);
+        AssertEqual("残り80%　あと26分でリセット", RateLimitFormatter.FormatDetail("5h", new RateLimitWindow(20, resetsAt), now));
+    }),
+    ("Format 5h reset already elapsed", () =>
+    {
+        var now = new DateTimeOffset(2026, 7, 6, 20, 0, 0, TimeSpan.FromHours(9));
+        var resetsAt = now.AddMinutes(-1);
+        AssertEqual("残り80%　まもなくリセット", RateLimitFormatter.FormatDetail("5h", new RateLimitWindow(20, resetsAt), now));
+    }),
+    ("Format 5h reset from resetsInSeconds", () =>
+    {
+        var now = new DateTimeOffset(2026, 7, 6, 20, 0, 0, TimeSpan.FromHours(9));
+        AssertEqual("残り80%　あと1時間0分でリセット", RateLimitFormatter.FormatDetail("5h", new RateLimitWindow(20, ResetsInSeconds: 3600), now));
     }),
     ("Format 1w reset with date and time", () =>
     {
         var localTime = new DateTime(2026, 7, 12, 9, 5, 0);
         var resetsAt = new DateTimeOffset(localTime, TimeZoneInfo.Local.GetUtcOffset(localTime));
         AssertEqual("残り50%　2026-07-12 09:05", RateLimitFormatter.FormatDetail("1w", new RateLimitWindow(50, resetsAt)));
+    }),
+    ("Format 1w reset from resetsInSeconds", () =>
+    {
+        var localTime = new DateTime(2026, 7, 6, 20, 0, 0);
+        var now = new DateTimeOffset(localTime, TimeZoneInfo.Local.GetUtcOffset(localTime));
+        AssertEqual("残り50%　2026-07-07 20:00", RateLimitFormatter.FormatDetail("1w", new RateLimitWindow(50, ResetsInSeconds: 86400), now));
     }),
     ("Parse matching rate limit response", () =>
     {

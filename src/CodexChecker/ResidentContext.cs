@@ -22,7 +22,7 @@ public sealed class ResidentContext : ApplicationContext
     private const int ModNoRepeat = 0x4000;
     private const Keys HotKey = Keys.X;
     private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(10);
-    private static readonly TimeSpan AutoHideDelay = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan AutoHideDelay = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan RpcTimeout = TimeSpan.FromSeconds(5);
 
     private readonly AppServerClient _client = new();
@@ -32,7 +32,6 @@ public sealed class ResidentContext : ApplicationContext
     private readonly Icon _trayIcon;
     private readonly System.Windows.Forms.Timer _pollTimer = new();
     private readonly System.Windows.Forms.Timer _autoHideTimer = new();
-    private bool _manualDisplay;
     private bool _disposed;
 
     public ResidentContext()
@@ -46,29 +45,25 @@ public sealed class ResidentContext : ApplicationContext
 
         ConfigureNotifyIcon();
 
-        _popup.RefreshRequested += async (_, _) => await ShowStatusAsync(autoHide: !_manualDisplay);
+        _popup.RefreshRequested += async (_, _) => await ShowStatusAsync();
         _popup.ExitRequested += (_, _) => ExitThread();
         _popup.VisibleChanged += (_, _) =>
         {
             if (!_popup.Visible)
             {
                 _autoHideTimer.Stop();
-                _manualDisplay = false;
             }
         };
 
         _pollTimer.Interval = (int)PollInterval.TotalMilliseconds;
-        _pollTimer.Tick += async (_, _) => await ShowStatusAsync(autoHide: !_manualDisplay);
+        _pollTimer.Tick += async (_, _) => await ShowStatusAsync();
         _pollTimer.Start();
 
         _autoHideTimer.Interval = (int)AutoHideDelay.TotalMilliseconds;
         _autoHideTimer.Tick += (_, _) =>
         {
             _autoHideTimer.Stop();
-            if (!_manualDisplay)
-            {
-                _popup.Hide();
-            }
+            _popup.Hide();
         };
 
         Application.Idle += OnFirstIdle;
@@ -103,7 +98,7 @@ public sealed class ResidentContext : ApplicationContext
     private async void OnFirstIdle(object? sender, EventArgs e)
     {
         Application.Idle -= OnFirstIdle;
-        await ShowStatusAsync(autoHide: true);
+        await ShowStatusAsync();
     }
 
     private async void OnHotKeyPressed()
@@ -114,21 +109,21 @@ public sealed class ResidentContext : ApplicationContext
             return;
         }
 
-        await ShowStatusAsync(autoHide: false);
+        await ShowStatusAsync();
     }
 
     private void ConfigureNotifyIcon()
     {
         var menu = new ContextMenuStrip();
-        menu.Items.Add("表示", null, async (_, _) => await ShowStatusAsync(autoHide: false));
-        menu.Items.Add("再取得", null, async (_, _) => await ShowStatusAsync(autoHide: !_manualDisplay));
+        menu.Items.Add("表示", null, async (_, _) => await ShowStatusAsync());
+        menu.Items.Add("再取得", null, async (_, _) => await ShowStatusAsync());
         menu.Items.Add("常駐を終了", null, (_, _) => ExitThread());
 
         _notifyIcon.Icon = _trayIcon;
         _notifyIcon.Text = "codex-checker";
         _notifyIcon.ContextMenuStrip = menu;
         _notifyIcon.Visible = true;
-        _notifyIcon.DoubleClick += async (_, _) => await ShowStatusAsync(autoHide: false);
+        _notifyIcon.DoubleClick += async (_, _) => await ShowStatusAsync();
     }
 
     private static Icon CreateTrayIcon()
@@ -163,9 +158,8 @@ public sealed class ResidentContext : ApplicationContext
         }
     }
 
-    private async Task ShowStatusAsync(bool autoHide)
+    private async Task ShowStatusAsync()
     {
-        _manualDisplay = !autoHide;
         _autoHideTimer.Stop();
         _popup.PositionAtBottomRight();
         _popup.ShowLoading();
@@ -195,7 +189,7 @@ public sealed class ResidentContext : ApplicationContext
             _popup.ShowError();
         }
 
-        if (autoHide && _popup.Visible)
+        if (_popup.Visible)
         {
             _autoHideTimer.Start();
         }

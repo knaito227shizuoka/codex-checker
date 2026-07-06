@@ -16,6 +16,7 @@ public sealed class StatusPopupForm : Form
     private readonly Label _secondaryLabel = new();
     private readonly RemainingBar _secondaryBar = new();
     private readonly Label _secondaryDetail = new();
+    private readonly Label _claudeLabel = new();
     private readonly LinkLabel _claudeLink = new();
 
     public event EventHandler? RefreshRequested;
@@ -27,7 +28,7 @@ public sealed class StatusPopupForm : Form
         ShowInTaskbar = false;
         TopMost = true;
         StartPosition = FormStartPosition.Manual;
-        Size = new Size(460, 142);
+        Size = new Size(500, 142);
         BackColor = Color.FromArgb(31, 34, 38);
         ForeColor = Color.White;
         Font = new Font("Consolas", 10F, FontStyle.Regular, GraphicsUnit.Point);
@@ -39,7 +40,7 @@ public sealed class StatusPopupForm : Form
 
         _closeButton.Text = "x";
         _closeButton.Size = new Size(26, 24);
-        _closeButton.Location = new Point(422, 8);
+        _closeButton.Location = new Point(462, 8);
         _closeButton.FlatStyle = FlatStyle.Flat;
         _closeButton.FlatAppearance.BorderSize = 0;
         _closeButton.BackColor = Color.FromArgb(31, 34, 38);
@@ -50,16 +51,21 @@ public sealed class StatusPopupForm : Form
 
         _statusLabel.AutoSize = false;
         _statusLabel.Location = new Point(14, 38);
-        _statusLabel.Size = new Size(432, 46);
+        _statusLabel.Size = new Size(472, 46);
         _statusLabel.ForeColor = Color.FromArgb(246, 248, 250);
         _statusLabel.Text = "取得中...";
 
         ConfigureRow(_primaryLabel, _primaryBar, _primaryDetail, "5h", top: 40);
         ConfigureRow(_secondaryLabel, _secondaryBar, _secondaryDetail, "1w", top: 64);
 
+        _claudeLabel.AutoSize = true;
+        _claudeLabel.Location = new Point(14, 92);
+        _claudeLabel.Text = "Claude";
+        _claudeLabel.ForeColor = Color.FromArgb(246, 248, 250);
+
         _claudeLink.AutoSize = true;
-        _claudeLink.Location = new Point(14, 92);
-        _claudeLink.Text = "Claude Usage を開く";
+        _claudeLink.Location = new Point(70, 92);
+        _claudeLink.Text = "Usage を開く";
         _claudeLink.LinkColor = Color.FromArgb(126, 200, 255);
         _claudeLink.ActiveLinkColor = Color.FromArgb(255, 214, 102);
         _claudeLink.VisitedLinkColor = Color.FromArgb(126, 200, 255);
@@ -74,6 +80,7 @@ public sealed class StatusPopupForm : Form
         Controls.Add(_secondaryLabel);
         Controls.Add(_secondaryBar);
         Controls.Add(_secondaryDetail);
+        Controls.Add(_claudeLabel);
         Controls.Add(_claudeLink);
 
         var menu = new ContextMenuStrip();
@@ -140,7 +147,7 @@ public sealed class StatusPopupForm : Form
     public void PositionAtBottomRight()
     {
         var area = Screen.PrimaryScreen?.WorkingArea ?? Screen.FromControl(this).WorkingArea;
-        Location = new Point(area.Right - Width - 12, area.Bottom - Height - 12);
+        Location = new Point(area.Right - Width, area.Bottom - Height);
     }
 
     private void ConfigureRow(Label label, RemainingBar bar, Label detail, string text, int top)

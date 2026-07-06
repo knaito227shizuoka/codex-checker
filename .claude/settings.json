@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "PowerShell($json = [System.Text.Json.JsonDocument]::Parse\\('{\"a\":20.0,\"b\":12.5,\"c\":20}'\\); foreach \\($k in 'a','b','c'\\) { $v = 0; $ok = $json.RootElement.GetProperty\\($k\\).TryGetInt32\\([ref]$v\\); \"$k -> TryGetInt32=$ok value=$v\" })",
-      "PowerShell(& \"C:\\\\Users\\\\azcat\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-azcat-Documents-github-codex-checker\\\\a403e030-f55d-4b49-bf14-1518623c8d60\\\\scratchpad\\\\probe.ps1\")"
+      "PowerShell(& \"C:\\\\Users\\\\azcat\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-azcat-Documents-github-codex-checker\\\\a403e030-f55d-4b49-bf14-1518623c8d60\\\\scratchpad\\\\probe.ps1\")",
+      "PowerShell(dotnet build src/CodexChecker)",
+      "PowerShell(dotnet run --project tests/CodexChecker.Tests)",
+      "PowerShell(Get-Process CodexChecker -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process)",
+      "PowerShell(dotnet publish src/CodexChecker -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true)",
+      "PowerShell(Start-Process -FilePath \"$PWD\\\\src\\\\CodexChecker\\\\bin\\\\Release\\\\net6.0-windows\\\\win-x64\\\\publish\\\\CodexChecker.exe\" -WindowStyle Hidden; Start-Sleep -Seconds 1; Get-Process CodexChecker)",
+      "PowerShell(pwsh -File .\\\\redeploy.ps1)"
     ]
   }
 }
